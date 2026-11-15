@@ -1,0 +1,10 @@
+---
+- name: Apply DNS Compose project
+  ansible.builtin.command:
+    cmd: docker-compose -f compose.yml up -d
+    chdir: "{{ dns_stack_dir }}"
+  register: dns_compose_up
+  changed_when: >-
+    'Created' in dns_compose_up.stdout or
+    'Recreated' in dns_compose_up.stdout or
+    'Started' in dns_compose_up.stdout

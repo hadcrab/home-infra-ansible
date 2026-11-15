@@ -1,0 +1,24 @@
+---
+- name: Create persistent directories for DNS services
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ dns_stack_dir }}"
+    - "{{ dns_stack_dir }}/pihole"
+    - "{{ dns_stack_dir }}/unbound"
+
+- name: Install DNS service Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ dns_stack_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Apply DNS Compose project
+
+- name: Start DNS services
+  ansible.builtin.meta: flush_handlers

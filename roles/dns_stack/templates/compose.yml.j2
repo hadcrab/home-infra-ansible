@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  unbound:
+    image: {{ unbound_image }}
+    restart: unless-stopped
+    expose:
+      - "53/tcp"
+      - "53/udp"
+    networks:
+      - dns
+
+  pihole:
+    image: {{ pihole_image }}
+    depends_on:
+      - unbound
+    restart: unless-stopped
+    environment:
+      TZ: {{ vault_timezone | quote }}
+      FTLCONF_dns_upstreams: "unbound#53"
+      FTLCONF_dns_listeningMode: ALL
+    ports:
+      - "{{ pihole_dns_port }}:53/tcp"
+      - "{{ pihole_dns_port }}:53/udp"
+      - "{{ pihole_web_port }}:80/tcp"
+    volumes:
+      - "{{ dns_stack_dir }}/pihole:/etc/pihole"
+    networks:
+      - dns
+
+networks:
+  dns:
+    name: homelab-dns

@@ -1,0 +1,9 @@
+---
+- name: Bootstrap Raspberry Pi DNS services
+  hosts: server
+  become: true
+  gather_facts: true
+
+  roles:
+    - bootstrap
+    - dns_stack

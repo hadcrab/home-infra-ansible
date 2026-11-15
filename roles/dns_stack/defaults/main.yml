@@ -1,0 +1,6 @@
+---
+dns_stack_dir: /opt/homelab/dns
+pihole_web_port: 8080
+pihole_dns_port: 53
+unbound_image: mvance/unbound:latest
+pihole_image: pihole/pihole:latest
