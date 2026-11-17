@@ -6,12 +6,12 @@ settings are stored in the encrypted inventory vars.
 
 Run with `ansible-playbook playbooks/site.yml`.
 
-Pi-hole: `http://192.168.0.30:8080/admin`  
+Pi-hole: `http://piaddress:8080/admin`  
 DNS: port `53`  
 Pi-hole data: `/opt/homelab/dns/pihole`  
 Compose file: `/opt/homelab/dns/compose.yml`
 
-Beszel Hub: `http://192.168.0.30:8090`
+Beszel Hub: `http://piaddress:8090`
 
 Beszel data: `/opt/homelab/beszel/data`
 
