@@ -7,3 +7,4 @@
   roles:
     - bootstrap
     - dns_stack
+    - beszel

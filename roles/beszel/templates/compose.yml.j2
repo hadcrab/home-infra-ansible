@@ -1,0 +1,32 @@
+---
+services:
+  beszel:
+    image: {{ beszel_hub_image }}
+    container_name: beszel
+    restart: unless-stopped
+    environment:
+      APP_URL: {{ beszel_app_url | quote }}
+      USER_EMAIL: {{ beszel_admin_email | quote }}
+      USER_PASSWORD: {{ beszel_admin_password | quote }}
+      DISABLE_SSH: "true"
+    ports:
+      - "{{ beszel_hub_port }}:8090/tcp"
+    volumes:
+      - "{{ beszel_dir }}/data:/beszel_data"
+
+{% if beszel_agent_key | default('') | length > 0 and beszel_agent_token | default('') | length > 0 %}
+  beszel-agent:
+    image: {{ beszel_agent_image }}
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - "{{ beszel_dir }}/agent:/var/lib/beszel-agent"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      LISTEN: "{{ beszel_agent_port }}"
+      HUB_URL: "http://127.0.0.1:{{ beszel_hub_port }}"
+      SYSTEM_NAME: {{ beszel_agent_system_name | quote }}
+      KEY: {{ beszel_agent_key | quote }}
+      TOKEN: {{ beszel_agent_token | quote }}
+{% endif %}

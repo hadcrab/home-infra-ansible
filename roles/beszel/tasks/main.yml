@@ -1,0 +1,154 @@
+---
+- name: Create persistent directories for Beszel
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ beszel_dir }}"
+    - "{{ beszel_dir }}/data"
+    - "{{ beszel_dir }}/agent"
+
+- name: Check that Beszel Hub credentials are available
+  ansible.builtin.assert:
+    that:
+      - vault_beszel_email is defined
+      - vault_beszel_email | length > 0
+      - vault_beszel_pass is defined
+      - vault_beszel_pass | length > 0
+    fail_msg: >-
+      Set vault_beszel_email and vault_beszel_pass in the encrypted inventory vars.
+  no_log: true
+
+- name: Check for the saved Beszel Agent credentials
+  ansible.builtin.stat:
+    path: "{{ beszel_agent_credentials_file }}"
+  register: beszel_agent_credentials_stat
+
+- name: Read the saved Beszel Agent credentials
+  ansible.builtin.slurp:
+    src: "{{ beszel_agent_credentials_file }}"
+  register: beszel_agent_credentials_slurp
+  when: beszel_agent_credentials_stat.stat.exists
+  no_log: true
+
+- name: Load the saved Beszel Agent credentials
+  ansible.builtin.set_fact:
+    beszel_agent_key: "{{ (beszel_agent_credentials_slurp.content | b64decode | from_json).key }}"
+    beszel_agent_token: "{{ (beszel_agent_credentials_slurp.content | b64decode | from_json).token }}"
+  when: beszel_agent_credentials_stat.stat.exists
+  no_log: true
+
+- name: Install initial Beszel Hub Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ beszel_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+
+- name: Start Beszel Hub
+  ansible.builtin.command:
+    cmd: docker-compose -f compose.yml up -d
+    chdir: "{{ beszel_dir }}"
+  register: beszel_hub_compose_up
+  changed_when: >-
+    beszel_hub_compose_up.stdout is search('(?im)^(Creating|Recreating|Starting) ')
+
+- name: Wait for Beszel Hub API
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ beszel_hub_port }}/api/health"
+    method: GET
+    status_code: 200
+  register: beszel_health
+  retries: 30
+  delay: 2
+  until: beszel_health.status == 200
+  changed_when: false
+
+- name: Authenticate to Beszel Hub API
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ beszel_hub_port }}/api/collections/users/auth-with-password"
+    method: POST
+    body_format: json
+    body:
+      identity: "{{ beszel_admin_email }}"
+      password: "{{ beszel_admin_password }}"
+    status_code: 200
+  register: beszel_auth
+  changed_when: false
+  no_log: true
+
+- name: Read Beszel Hub public key
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ beszel_hub_port }}/api/beszel/getkey"
+    method: GET
+    headers:
+      Authorization: "{{ beszel_auth.json.token }}"
+    status_code: 200
+  register: beszel_public_key_response
+  changed_when: false
+  no_log: true
+
+- name: Read Beszel universal token state
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ beszel_hub_port }}/api/beszel/universal-token"
+    method: GET
+    headers:
+      Authorization: "{{ beszel_auth.json.token }}"
+    status_code: 200
+  register: beszel_universal_token_state
+  changed_when: false
+  no_log: true
+
+- name: Enable permanent Beszel universal token when needed
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ beszel_hub_port }}/api/beszel/universal-token?enable=1&permanent=1"
+    method: GET
+    headers:
+      Authorization: "{{ beszel_auth.json.token }}"
+    status_code: 200
+  register: beszel_universal_token_enabled
+  when: >-
+    not beszel_universal_token_state.json.active or
+    not beszel_universal_token_state.json.permanent
+  changed_when: true
+  no_log: true
+
+- name: Set Beszel Agent registration credentials
+  ansible.builtin.set_fact:
+    beszel_agent_key: "{{ beszel_public_key_response.json.key }}"
+    beszel_agent_token: "{{ (beszel_universal_token_enabled.json if beszel_universal_token_enabled is changed else beszel_universal_token_state.json).token }}"
+  no_log: true
+
+- name: Save Beszel Agent registration credentials
+  ansible.builtin.copy:
+    content: "{{ {'key': beszel_agent_key, 'token': beszel_agent_token} | to_nice_json }}\n"
+    dest: "{{ beszel_agent_credentials_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+
+- name: Install complete Beszel Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ beszel_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0600'
+  register: beszel_complete_compose
+  no_log: true
+
+- name: Ensure Beszel Hub and Agent are running
+  ansible.builtin.command:
+    cmd: docker-compose -f compose.yml up -d
+    chdir: "{{ beszel_dir }}"
+  register: beszel_compose_up
+  when: beszel_complete_compose.changed
+  changed_when: >-
+    beszel_compose_up.stdout is search('(?im)^(Creating|Recreating|Starting) ')
+  no_log: true
