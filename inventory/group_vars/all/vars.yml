@@ -1,0 +1,5 @@
+---
+services_root: /opt/services
+beszel_version: 0.21.2
+beszel_hub_port: 8090
+beszel_agent_port: 45876

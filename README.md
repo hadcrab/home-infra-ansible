@@ -1,31 +1,64 @@
-# Raspberry Pi homelab
+# Home infrastructure
 
-Ansible setup for Pi-hole with Unbound and Beszel on the Raspberry Pi. Ansible
-updates packages, installs Docker, and starts the services. The Pi's IP and SSH
-settings are stored in the encrypted inventory vars.
+Ansible manages Debian nodes and assigns services through inventory groups.
+The Raspberry Pi currently runs Docker, Pi-hole with Unbound, the Beszel Hub,
+and a Beszel Agent. The ASUS node runs a Beszel Agent only.
 
-Run with `ansible-playbook playbooks/site.yml`.
+Run the full site playbook with:
 
-Pi-hole: `http://piaddress:8080/admin`  
-DNS: port `53`  
-Pi-hole data: `/opt/homelab/dns/pihole`  
-Compose file: `/opt/homelab/dns/compose.yml`
+```sh
+ansible-playbook playbooks/site.yml
+```
 
-Beszel Hub: `http://piaddress:8090`
+Run one service on one node with tags and a host limit. For example, deploy
+only the Beszel Agent to the ASUS node:
 
-Beszel data: `/opt/homelab/beszel/data`
+```sh
+ansible-playbook playbooks/site.yml --limit morituri --tags beszel_agent
+```
 
-Compose file: `/opt/homelab/beszel/compose.yml`
+## Assigning services
 
-The playbook creates the initial admin account from `vault_beszel_email` and
-`vault_beszel_pass`, enables Beszel's permanent agent registration token,
-registers the Raspberry Pi, and starts its Agent. The Compose file containing
-these credentials is stored with root-only permissions. The Agent listens on
-port `45876` and mounts the Docker socket with `:ro` to collect container
-metrics.
+Edit `inventory/hosts.ini` to assign each node to the service groups it should
+run:
 
-To set a new Pi-hole web password, run on the Pi. The command prompts for it
-without displaying the password as you type:
+- `debian`: common Debian package maintenance.
+- `container_hosts`: derived group; Docker Engine and Compose are installed on
+  every node assigned a containerized service.
+- `dns_nodes`: Pi-hole with Unbound.
+- `beszel_hub`: the single Beszel Hub.
+- `beszel_agents`: nodes monitored by that Hub.
+
+To add a Debian node, add its inventory alias under `[debian]`, add a matching
+`inventory/host_vars/<alias>.yml` with its address, SSH user, and sudo password
+variable, then add it to the groups for the services it should run. Membership
+in `dns_nodes`, `beszel_hub`, or `beszel_agents` automatically adds the host to
+`container_hosts`, so Docker is installed as a prerequisite. The private SSH
+key stays on the Ansible control machine; every node uses its public key.
+
+Per-node secrets live in the encrypted `inventory/group_vars/server/vault.yml`.
+Use the existing `vault_pi_*` and `vault_morituri_*` names as examples when
+adding host variables. Beszel Hub credentials are `vault_beszel_email` and
+`vault_beszel_pass`.
+
+## Current service addresses and data
+
+- Pi-hole: `http://<rasp-ip>:8080/admin`, DNS port `53`.
+- Pi-hole data: `/opt/homelab/dns/pihole`.
+- DNS Compose file: `/opt/homelab/dns/compose.yml`.
+- Beszel Hub: `http://<rasp-ip>:8090`.
+- Beszel Hub data: `/opt/homelab/beszel/data`.
+- Beszel Agent data on the Pi: `/opt/homelab/beszel/agent`.
+
+The existing Raspberry Pi data paths are retained so a playbook run does not
+move or recreate application data. New nodes use `/opt/services` by default.
+
+The Beszel Hub role creates the first account from the vaulted credentials,
+enables a permanent universal token, and stores the Hub key and token in a
+root-only file so Agent-only runs can retrieve them over SSH. The Agent mounts
+the Docker socket on Agent hosts to report container metrics.
+
+To set a new Pi-hole web password, run on the Pi:
 
 ```sh
 sudo docker-compose -f /opt/homelab/dns/compose.yml exec pihole pihole setpassword

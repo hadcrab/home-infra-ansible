@@ -1,0 +1,47 @@
+---
+- name: Require exactly one configured Beszel Hub
+  ansible.builtin.assert:
+    that: groups.get('beszel_hub', []) | length == 1
+    fail_msg: Add exactly one host to the beszel_hub inventory group.
+
+- name: Create persistent directory for the Beszel Agent
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ beszel_agent_dir }}"
+    - "{{ beszel_agent_data_dir }}"
+
+- name: Read Agent registration credentials from the Hub
+  ansible.builtin.slurp:
+    src: "{{ beszel_agent_credentials_file }}"
+  delegate_to: "{{ beszel_hub_host }}"
+  register: beszel_agent_credentials
+  no_log: true
+
+- name: Parse Agent registration credentials
+  ansible.builtin.set_fact:
+    beszel_agent_key: "{{ (beszel_agent_credentials.content | b64decode | from_json).key }}"
+    beszel_agent_token: "{{ (beszel_agent_credentials.content | b64decode | from_json).token }}"
+  no_log: true
+
+- name: Install Beszel Agent Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ beszel_agent_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+
+- name: Ensure Beszel Agent is running
+  ansible.builtin.command:
+    cmd: docker-compose -f compose.yml up -d
+    chdir: "{{ beszel_agent_dir }}"
+  register: beszel_agent_compose_up
+  changed_when: >-
+    beszel_agent_compose_up.stdout is search('(?im)^(Creating|Recreating|Starting) ')
+  no_log: true

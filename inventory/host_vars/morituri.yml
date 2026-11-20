@@ -1,0 +1,4 @@
+---
+ansible_host: "{{ vault_morituri_ip }}"
+ansible_user: "{{ vault_morituri_user }}"
+ansible_become_password: "{{ vault_morituri_pass }}"

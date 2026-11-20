@@ -1,0 +1,9 @@
+---
+ansible_host: "{{ vault_pi_ip }}"
+ansible_user: "{{ vault_pi_user }}"
+ansible_become_password: "{{ vault_pi_become_pass }}"
+
+# Keep existing bind-mounted data in place during this refactor.
+dns_stack_dir: /opt/homelab/dns
+beszel_hub_dir: /opt/homelab/beszel
+beszel_agent_data_dir: /opt/homelab/beszel/agent

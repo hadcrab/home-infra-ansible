@@ -1,0 +1,15 @@
+---
+services:
+  beszel:
+    image: {{ beszel_hub_image }}
+    container_name: beszel
+    restart: unless-stopped
+    environment:
+      APP_URL: {{ beszel_hub_app_url | quote }}
+      USER_EMAIL: {{ beszel_admin_email | quote }}
+      USER_PASSWORD: {{ beszel_admin_password | quote }}
+      DISABLE_SSH: "true"
+    ports:
+      - "{{ beszel_hub_port }}:8090/tcp"
+    volumes:
+      - "{{ beszel_hub_dir }}/data:/beszel_data"

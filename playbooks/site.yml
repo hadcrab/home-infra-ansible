@@ -1,10 +1,40 @@
 ---
-- name: Bootstrap Raspberry Pi DNS services
-  hosts: server
+- name: Prepare Debian nodes
+  hosts: debian
   become: true
   gather_facts: true
-
   roles:
-    - bootstrap
-    - dns_stack
-    - beszel
+    - role: bootstrap
+      tags: [base]
+
+- name: Install Docker on selected nodes
+  hosts: container_hosts
+  become: true
+  gather_facts: false
+  roles:
+    - role: docker_engine
+      tags: [docker, dns, beszel_hub, beszel_agent]
+
+- name: Deploy DNS services on selected nodes
+  hosts: dns_nodes
+  become: true
+  gather_facts: false
+  roles:
+    - role: dns_stack
+      tags: [dns]
+
+- name: Deploy the Beszel Hub
+  hosts: beszel_hub
+  become: true
+  gather_facts: false
+  roles:
+    - role: beszel_hub
+      tags: [beszel_hub]
+
+- name: Deploy Beszel Agents on selected nodes
+  hosts: beszel_agents
+  become: true
+  gather_facts: false
+  roles:
+    - role: beszel_agent
+      tags: [beszel_agent]

@@ -1,0 +1,5 @@
+---
+beszel_hub_host: "{{ groups['beszel_hub'][0] }}"
+beszel_hub_url: "{{ hostvars[beszel_hub_host].beszel_hub_app_url }}"
+beszel_agent_credentials_file: "{{ hostvars[beszel_hub_host].beszel_agent_credentials_file }}"
+beszel_agent_docker_socket: true

@@ -1,0 +1,7 @@
+---
+beszel_hub_dir: "{{ services_root }}/beszel"
+beszel_hub_image: "henrygd/beszel:{{ beszel_version }}"
+beszel_hub_app_url: "http://{{ ansible_host | default(inventory_hostname) }}:{{ beszel_hub_port }}"
+beszel_agent_credentials_file: "{{ beszel_hub_dir }}/agent-credentials.json"
+beszel_admin_email: "{{ vault_beszel_email }}"
+beszel_admin_password: "{{ vault_beszel_pass }}"
