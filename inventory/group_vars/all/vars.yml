@@ -1,5 +1,14 @@
 ---
 services_root: /opt/services
 beszel_version: 0.21.2
+
+# Host-facing ports and the internal DNS listener.
+# Pi-hole DNS: pihole_dns_port -> 53/tcp+udp; Unbound: 53/tcp+udp on homelab-dns only.
+# Pi-hole web: pihole_web_port -> 80/tcp; Beszel Hub: beszel_hub_port -> 8090/tcp.
+# Beszel Agent listens on beszel_agent_port/tcp (host network).
+# Uptime Kuma: uptime_kuma_port -> 3001/tcp.
 beszel_hub_port: 8090
 beszel_agent_port: 45876
+pihole_dns_port: 53
+pihole_web_port: 8080
+uptime_kuma_port: 3001

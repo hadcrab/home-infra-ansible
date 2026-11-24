@@ -57,6 +57,8 @@ Omit `--limit` and `--tags` to run the full playbook.
 - `inventory/group_vars/` — shared variables and encrypted secrets.
 - `roles/` — tasks, defaults, and Compose templates for each service.
 
+Service port assignments are centralized in `inventory/group_vars/all/vars.yml`.
+
 To add a node, add it to `debian`, set its connection details in `host_vars/`,
 then assign it to the required service groups. The private SSH key stays on the
 Ansible control machine.
