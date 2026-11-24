@@ -1,0 +1,27 @@
+---
+- name: Create persistent directory for Uptime Kuma
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ uptime_kuma_dir }}"
+    - "{{ uptime_kuma_dir }}/data"
+
+- name: Install Uptime Kuma Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ uptime_kuma_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure Uptime Kuma is running
+  ansible.builtin.command:
+    cmd: docker-compose -f compose.yml up -d
+    chdir: "{{ uptime_kuma_dir }}"
+  register: uptime_kuma_compose_up
+  changed_when: >-
+    uptime_kuma_compose_up.stdout is search('(?im)^(Creating|Recreating|Starting) ')

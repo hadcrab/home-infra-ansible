@@ -13,7 +13,7 @@
   gather_facts: false
   roles:
     - role: docker_engine
-      tags: [docker, dns, beszel_hub, beszel_agent]
+      tags: [docker, dns, beszel_hub, beszel_agent, uptime_kuma]
 
 - name: Deploy DNS services on selected nodes
   hosts: dns_nodes
@@ -38,3 +38,11 @@
   roles:
     - role: beszel_agent
       tags: [beszel_agent]
+
+- name: Deploy Uptime Kuma on selected nodes
+  hosts: uptime_kuma
+  become: true
+  gather_facts: false
+  roles:
+    - role: uptime_kuma
+      tags: [uptime_kuma]

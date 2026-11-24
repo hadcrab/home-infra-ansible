@@ -1,0 +1,4 @@
+---
+uptime_kuma_dir: "{{ services_root }}/uptime-kuma"
+uptime_kuma_image: louislam/uptime-kuma:2.5.12
+uptime_kuma_port: 3001
