@@ -1,65 +1,62 @@
 # Home infrastructure
 
 Ansible manages Debian nodes and assigns services through inventory groups.
-The Raspberry Pi currently runs Docker, Pi-hole with Unbound, the Beszel Hub,
-and a Beszel Agent. The ASUS node runs a Beszel Agent only.
 
-Run the full site playbook with:
+```mermaid
+flowchart TD
+    Debian[debian: managed nodes] --> Base[bootstrap: package updates]
 
-```sh
-ansible-playbook playbooks/site.yml
+    DNS[dns_nodes] --> Containers[container_hosts: automatic]
+    Hub[beszel_hub] --> Containers
+    Agents[beszel_agents] --> Containers
+    Kuma[uptime_kuma: one central instance] --> Containers
+    Containers --> Docker[docker_engine]
+
+    DNS --> DNSRole[dns_stack: Pi-hole + Unbound]
+    Hub --> HubRole[Beszel Hub: metrics dashboard]
+    Agents --> AgentRole[Beszel Agent: node metrics]
+    Kuma --> KumaRole[Uptime Kuma: availability checks]
+    AgentRole --> HubRole
+    KumaRole -. checks over the network .-> DNSRole
+    KumaRole -. checks over the network .-> HubRole
 ```
 
-Run one service on one node with tags and a host limit. For example, deploy
-only the Beszel Agent to the ASUS node:
+| Inventory group | Role |
+| --- | --- |
+| `debian` | Base Debian node setup |
+| `dns_nodes` | Pi-hole and Unbound |
+| `beszel_hub` | Central Beszel dashboard |
+| `beszel_agents` | Beszel metrics agents |
+| `uptime_kuma` | One central availability monitor |
+
+Container service groups automatically include their nodes in `container_hosts`,
+which installs Docker. Kuma checks selected services over the network; configure
+monitors in its web interface.
+
+## Run a deployment
+
+Select an inventory group or machine alias, then choose a service tag:
 
 ```sh
-ansible-playbook playbooks/site.yml --limit morituri --tags beszel_agent
+ansible-playbook playbooks/site.yml --limit <group-or-alias> --tags <service-tag>
 ```
 
-## Assigning services
-
-Edit `inventory/hosts.ini` to assign each node to the service groups it should
-run:
-
-- `debian`: common Debian package maintenance.
-- `container_hosts`: derived group; Docker Engine and Compose are installed on
-  every node assigned a containerized service.
-- `dns_nodes`: Pi-hole with Unbound.
-- `beszel_hub`: the single Beszel Hub.
-- `beszel_agents`: nodes monitored by that Hub.
-
-To add a Debian node, add its inventory alias under `[debian]`, add a matching
-`inventory/host_vars/<alias>.yml` with its address, SSH user, and sudo password
-variable, then add it to the groups for the services it should run. Membership
-in `dns_nodes`, `beszel_hub`, or `beszel_agents` automatically adds the host to
-`container_hosts`, so Docker is installed as a prerequisite. The private SSH
-key stays on the Ansible control machine; every node uses its public key.
-
-Per-node secrets live in the encrypted `inventory/group_vars/server/vault.yml`.
-Use the existing `vault_pi_*` and `vault_morituri_*` names as examples when
-adding host variables. Beszel Hub credentials are `vault_beszel_email` and
-`vault_beszel_pass`.
-
-## Current service addresses and data
-
-- Pi-hole: `http://<rasp-ip>:8080/admin`, DNS port `53`.
-- Pi-hole data: `/opt/homelab/dns/pihole`.
-- DNS Compose file: `/opt/homelab/dns/compose.yml`.
-- Beszel Hub: `http://<rasp-ip>:8090`.
-- Beszel Hub data: `/opt/homelab/beszel/data`.
-- Beszel Agent data on the Pi: `/opt/homelab/beszel/agent`.
-
-The existing Raspberry Pi data paths are retained so a playbook run does not
-move or recreate application data. New nodes use `/opt/services` by default.
-
-The Beszel Hub role creates the first account from the vaulted credentials,
-enables a permanent universal token, and stores the Hub key and token in a
-root-only file so Agent-only runs can retrieve them over SSH. The Agent mounts
-the Docker socket on Agent hosts to report container metrics.
-
-To set a new Pi-hole web password, run on the Pi:
+For example, deploy the central Kuma instance:
 
 ```sh
-sudo docker-compose -f /opt/homelab/dns/compose.yml exec pihole pihole setpassword
+ansible-playbook playbooks/site.yml --limit uptime_kuma --tags uptime_kuma
 ```
+
+Tags: `base`, `docker`, `dns`, `beszel_hub`, `beszel_agent`, `uptime_kuma`.
+Omit `--limit` and `--tags` to run the full playbook.
+
+## Repository layout
+
+- `inventory/hosts.ini` — node and service assignments.
+- `inventory/host_vars/` — connection settings for each node.
+- `inventory/group_vars/` — shared variables and encrypted secrets.
+- `roles/` — tasks, defaults, and Compose templates for each service.
+
+To add a node, add it to `debian`, set its connection details in `host_vars/`,
+then assign it to the required service groups. The private SSH key stays on the
+Ansible control machine.
